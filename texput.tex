@@ -5,7 +5,7 @@
 \maketitle
 \tableofcontents
 
-\subsection{Measurement}
+\section{Time measurement}
 Ping can provide statistics about latencies.
 
 \begin{figure}
@@ -45,5 +45,87 @@ example, it also holds that
   \text{RTT} = 2t_p + 2t_t.
   \label{eq:RTT}
 \end{equation}
+
+\section{Bit-rate measurement}
+
+Usually, to determine the throughput, we need to use a tool such as
+\href{https://iperf.fr/}{iPerf} to
+\href{https://en.wikipedia.org/wiki/Measuring_network_throughput}{measure
+  the link capacity} between two
+\href{https://datatracker.ietf.org/doc/html/rfc4113}{end-points} (of
+different \href{https://en.wikipedia.org/wiki/Host_(network)}{hosts})
+in the Internet. Unfortunately, this procedure implies that we must
+have access to both hosts to install and run this program, privileges
+that are not always available.
+
+Alternatively, we can estimate the
+\href{https://en.wikipedia.org/wiki/Throughput}{link throughput} using
+\href{https://github.com/torvalds/linux/blob/master/net/ipv4/ping.c}{\texttt{ping}}. However,
+it is important to realize that \texttt{ping} has been designed to
+measure latencies, not bit-rates, and that, for this reason, we will
+only be able to estimate throughputs, rougtly.
+
+Said that, the transmission bitrate available between two directly
+reachable IP devices can be found with
+\begin{equation}
+  b=\frac{B}{t_t},
+  \label{eq:b}
+\end{equation}
+where $B$ is the number of bits sent in a \verb|ping|
+\href{https://en.wikipedia.org/wiki/Payload_(computing)}{payload}, and
+\begin{equation}
+  t_t = \frac{\text{RTT}_{\text{max}}-2t_p}{2},
+  \label{eq:tt}
+\end{equation}
+an equation that can be determined by revisiting the \verb|ping|
+timeline shown in the Figure~\ref{fig:ping_timeline}
+and the Eq.~\ref{eq:RTT}. In this expression, $\text{RTT}_{\text{max}}$ represents
+  the average\footnote{Remember that ping can generate a number of
+    time measurements.} RTT measured when we send the
+  maximum\footnote{We should use a payload as large as possible
+    (ideally, an infinite number of bytes), in order to make $t_t$ a
+    significant amount of time, which is easy to measure} number of
+  bytes in the payload of the \verb|ping|, and
+\begin{equation}
+  t_p \approx \frac{\text{RTT}_{\text{min}}}{2},
+  \label{eq:tp}
+\end{equation}
+where $\text{RTT}_{\text{min}}$ presents the minimum\footnote{Again,
+  remember that ping returns a collection of RTTs, a we should use the
+  minimun beause the latency of the link should be a constant and the
+  congestion always increases this value.} RTT measurement when we
+send the minimum\footnote{If the payload of the ping is small enough
+  ($0$ bytes ideally), it would happen that $t_t=0$.} payload.
+
+Therefore, to estimate $b$ for the near future, we must perform the
+following steps:
+
+\begin{enumerate}
+  
+\item Run \texttt{ping} using the smallest possible payload that
+  provides RTTs values.\footnote{The minimal payload for a
+    \texttt{ping} message can be 0, but depending on the
+    implementation of \texttt{ping} you might have to use a larger
+    value.} Use it to calculate $t_p$.
+  
+\item Run \texttt{ping} using the largest possible payload to achieve
+  that the most part of the average RTT provided by \texttt{ping}
+  corresponds to $t_t$. It is necessary to use the highest
+  payload-size because the accuracy of the cronometer used by
+  \texttt{ping}, in general, is not high enough.
+  
+\item Use Eq.~\eqref{eq:tt} to find $t_t$ as a function of the average
+  RTT and the minimal $t_p$.
+  
+\item Finally, use Eq.~\eqref{eq:b} to determine $b$.
+  
+\end{enumerate}
+
+If the devices cannot be \texttt{ping}-ed, and supposing that there is
+only one point in the communication link that is filtering the ICMP
+Echo Request traffic in each direction, then we can compute the total RTT as
+the sum of the RTTs from the devices that we want to connect (where
+the InterCom is it supposed to be run) to the filter (possiblely, one
+of your home routers).
 
 \bibliography{networking}
